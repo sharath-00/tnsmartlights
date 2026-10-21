@@ -22,7 +22,7 @@ on:
 
   # 3. Webhook / External API Trigger (cURL, AppSheet, Postman)
   repository_dispatch:
-    types: [vellore_dashboard_dispatch, dispatch_vellore_mail]
+    types: [vellore_dashboard_dispatch, dispatch_vellore_mail, all_dashboards_dispatch, dispatch_all_mail]
 
 jobs:
   dispatch-vellore-dashboard:
@@ -67,9 +67,10 @@ jobs:
             CMD="$CMD --send"
           fi
           
-          # Check for custom recipient override
-          if [ -n "${{ github.event.inputs.recipient }}" ]; then
-            CMD="$CMD --to '${{ github.event.inputs.recipient }}'"
+          # Check for custom recipient override (from manual workflow_dispatch or repository_dispatch client_payload)
+          TARGET_RECIPIENT="${{ github.event.inputs.recipient || github.event.client_payload.recipient }}"
+          if [ -n "$TARGET_RECIPIENT" ]; then
+            CMD="$CMD --to '$TARGET_RECIPIENT'"
           fi
           
           echo "Executing: $CMD"

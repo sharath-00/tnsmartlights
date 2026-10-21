@@ -61,16 +61,29 @@ DEFAULT_PROJECT_META = {
 
 
 def load_env():
-    """Load configuration from root .env if present."""
-    env_file = os.path.join(BASE_DIR, ".env")
+    """
+    Load configuration from root .env (if present) and merge with os.environ.
+    This guarantees GitHub Actions secrets and environment variables are always loaded.
+    """
     env_vars = {}
+
+    # 1. Read .env file if present (local development)
+    env_file = os.path.join(BASE_DIR, ".env")
     if os.path.exists(env_file):
         with open(env_file, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     key, val = line.split("=", 1)
-                    env_vars[key.strip()] = val.strip().strip('"').strip("'")
+                    val = val.strip().strip('"').strip("'")
+                    if val:
+                        env_vars[key.strip()] = val
+
+    # 2. Overlay with os.environ (GitHub Secrets, CI/CD runners, system env)
+    for k, v in os.environ.items():
+        if v is not None and str(v).strip():
+            env_vars[k] = str(v).strip().strip('"').strip("'")
+
     return env_vars
 
 
@@ -86,10 +99,10 @@ def discover_projects(env_vars):
     if "ACTIVE_PROJECTS" in env_vars:
         active_keys = [k.strip().lower() for k in env_vars["ACTIVE_PROJECTS"].split(",") if k.strip()]
 
-    # Scan for project prefixes in .env (excluding SMTP)
+    # Scan for project prefixes in .env (excluding SMTP and system keys)
     discovered_keys = set(active_keys)
     for k in env_vars.keys():
-        if k.endswith("_USERNAME") and k != "SMTP_USERNAME":
+        if k.endswith("_USERNAME") and k != "SMTP_USERNAME" and not k.startswith("GITHUB_") and not k.startswith("AGENT_"):
             prefix = k[:-9].lower()
             discovered_keys.add(prefix)
 
@@ -1114,12 +1127,17 @@ def send_dashboard_email(html_content, excel_path, project_title, custom_recipie
 
     if not smtp_user or not smtp_pass or not recipients:
         print("\n=== DRY RUN / EMAIL CONFIGURATION NOTICE ===")
-        print(f"Subject       : {subject}")
-        print(f"From          : {sender_email or 'Not configured'}")
-        print(f"To            : {', '.join(recipients) if recipients else 'No recipients set in .env'}")
-        print(f"Attachment    : {excel_path} ({os.path.getsize(excel_path):,} bytes)")
-        print(f"HTML Size     : {len(html_content):,} bytes")
-        print("\nTo send real emails, verify your .env file with SMTP_USERNAME, SMTP_PASSWORD, and RECIPIENTS.")
+        print(f"Subject        : {subject}")
+        print(f"From (SENDER)  : {sender_email or 'NOT SET (Missing SENDER_EMAIL or SMTP_USERNAME in Secrets)'}")
+        print(f"SMTP Username  : {'Configured' if smtp_user else 'NOT SET (Missing SMTP_USERNAME in Secrets)'}")
+        print(f"SMTP Password  : {f'Configured ({len(smtp_pass)} chars)' if smtp_pass else 'NOT SET (Missing SMTP_PASSWORD in Secrets)'}")
+        print(f"To (Recipients): {', '.join(recipients) if recipients else 'NOT SET (Missing RECIPIENTS in Secrets)'}")
+        print(f"Attachment     : {excel_path} ({os.path.getsize(excel_path):,} bytes)")
+        print(f"HTML Size      : {len(html_content):,} bytes")
+        print("\nTo send live emails, ensure GitHub Settings > Secrets and variables > Actions has:")
+        print("  1. RECIPIENTS (e.g. 71762332038@cit.edu.in)")
+        print("  2. SMTP_USERNAME (e.g. vinoth.joel@schnellenergy.com)")
+        print("  3. SMTP_PASSWORD (e.g. your Gmail App Password)")
         return False
 
     msg = MIMEMultipart("mixed")

@@ -46,20 +46,41 @@ In your GitHub repository, go to **Settings** > **Secrets and variables** > **Ac
 - **Evening Run (07:00 PM IST)**: Verifies nighttime streetlight turn-on (Relay ON validation) and power feeder health.
 
 ### Option C: Webhook / External API Trigger (cURL / Postman / AppSheet)
-```bash
-# Trigger Trichy Dashboard Dispatch
-curl -X POST \
-  -H "Accept: application/vnd.github.v3+json" \
-  -H "Authorization: token YOUR_GITHUB_PERSONAL_ACCESS_TOKEN" \
-  https://api.github.com/repos/YOUR_ORG/YOUR_REPO/dispatches \
-  -d '{"event_type": "trichy_dashboard_dispatch"}'
 
-# Trigger Vellore Dashboard Dispatch
+#### 1. Trigger BOTH Trichy & Vellore Emails Simultaneously (Single Request)
+```bash
 curl -X POST \
   -H "Accept: application/vnd.github.v3+json" \
-  -H "Authorization: token YOUR_GITHUB_PERSONAL_ACCESS_TOKEN" \
-  https://api.github.com/repos/YOUR_ORG/YOUR_REPO/dispatches \
+  -H "Authorization: Bearer YOUR_GITHUB_PERSONAL_ACCESS_TOKEN" \
+  https://api.github.com/repos/sharath-00/tnsmartlights/dispatches \
+  -d '{"event_type": "all_dashboards_dispatch"}'
+```
+
+#### 2. Trigger Trichy Only
+```bash
+curl -X POST \
+  -H "Accept: application/vnd.github.v3+json" \
+  -H "Authorization: Bearer YOUR_GITHUB_PERSONAL_ACCESS_TOKEN" \
+  https://api.github.com/repos/sharath-00/tnsmartlights/dispatches \
+  -d '{"event_type": "trichy_dashboard_dispatch"}'
+```
+
+#### 3. Trigger Vellore Only
+```bash
+curl -X POST \
+  -H "Accept: application/vnd.github.v3+json" \
+  -H "Authorization: Bearer YOUR_GITHUB_PERSONAL_ACCESS_TOKEN" \
+  https://api.github.com/repos/sharath-00/tnsmartlights/dispatches \
   -d '{"event_type": "vellore_dashboard_dispatch"}'
+```
+
+#### 4. Optional: Override Recipient via `client_payload`
+```bash
+curl -X POST \
+  -H "Accept: application/vnd.github.v3+json" \
+  -H "Authorization: Bearer YOUR_GITHUB_PERSONAL_ACCESS_TOKEN" \
+  https://api.github.com/repos/sharath-00/tnsmartlights/dispatches \
+  -d '{"event_type": "all_dashboards_dispatch", "client_payload": {"recipient": "your_email@example.com"}}'
 ```
 
 ---
